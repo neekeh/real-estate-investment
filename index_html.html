@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#ffffff">
+<meta name="description" content="Công cụ tính hiệu quả đầu tư bất động sản: IRR, NPV, Payback Period, Equity Return">
+<title>Tính Hiệu Quả Đầu Tư BĐS</title>
+<link rel="manifest" href="manifest.json">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f0;color:#1a1a1a;min-height:100vh}
+  header{background:#fff;border-bottom:1px solid #e5e5e0;padding:16px 20px;position:sticky;top:0;z-index:100}
+  header h1{font-size:17px;font-weight:600;color:#1a1a1a}
+  header p{font-size:12px;color:#888;margin-top:2px}
+  .container{max-width:900px;margin:0 auto;padding:20px 16px}
+  .tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:20px;background:#fff;border-radius:12px;padding:6px;border:1px solid #e5e5e0}
+  .tab{padding:8px 12px;font-size:13px;cursor:pointer;border:none;background:transparent;color:#666;border-radius:8px;flex:1;text-align:center;white-space:nowrap;transition:all .15s}
+  .tab.active{background:#1a1a1a;color:#fff;font-weight:500}
+  .tab:hover:not(.active){background:#f0f0ec}
+  .section{display:none}
+  .section.active{display:block}
+  .card{background:#fff;border:1px solid #e5e5e0;border-radius:12px;padding:16px 18px;margin-bottom:14px}
+  .card-title{font-size:13px;color:#666;margin-bottom:12px;font-weight:500;text-transform:uppercase;letter-spacing:.03em}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:500px){.grid2{grid-template-columns:1fr}.metric-grid{grid-template-columns:1fr 1fr!important}}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field label{font-size:12px;color:#666}
+  .field input{font-size:15px;padding:9px 12px;border:1px solid #e0e0dc;border-radius:8px;background:#fff;color:#1a1a1a;width:100%;-webkit-appearance:none}
+  .field input:focus{outline:none;border-color:#1a1a1a}
+  .hint{font-size:11px;color:#aaa;margin-top:2px}
+  .btn{background:#1a1a1a;border:none;border-radius:10px;padding:13px 20px;font-size:15px;cursor:pointer;color:#fff;font-weight:500;width:100%;margin-top:4px;transition:opacity .15s}
+  .btn:hover{opacity:.85}
+  .btn:active{opacity:.7}
+  .metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+  .metric{background:#f7f7f3;border-radius:10px;padding:12px;text-align:center}
+  .metric-label{font-size:11px;color:#888;margin-bottom:4px}
+  .metric-value{font-size:20px;font-weight:600;color:#1a1a1a}
+  .metric-value.good{color:#0a7c5c}
+  .metric-value.warn{color:#b8860b}
+  .metric-value.bad{color:#c0392b}
+  .divider{border:none;border-top:1px solid #f0f0ec;margin:16px 0}
+  .chart-wrap{position:relative;width:100%;height:200px;margin-top:12px}
+  .cash-table{width:100%;border-collapse:collapse;font-size:12px}
+  .cash-table th{text-align:right;padding:7px 8px;color:#888;font-weight:500;border-bottom:1px solid #f0f0ec;font-size:11px}
+  .cash-table th:first-child{text-align:left}
+  .cash-table td{text-align:right;padding:6px 8px;border-bottom:1px solid #f8f8f5;color:#1a1a1a}
+  .cash-table td:first-child{text-align:left;color:#888}
+  .note{font-size:11px;color:#888;background:#f7f7f3;border-radius:8px;padding:10px 12px;margin-top:10px;line-height:1.6}
+  .legend{display:flex;gap:16px;font-size:12px;color:#888;margin-bottom:8px}
+  .legend span{display:flex;align-items:center;gap:5px}
+  .dot{width:10px;height:10px;border-radius:2px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Tính Hiệu Quả Đầu Tư BĐS</h1>
+  <p>IRR · NPV · Payback Period · Equity Return</p>
+</header>
+
+<div class="container">
+<div class="tabs" id="tabs">
+  <button class="tab active" onclick="switchTab(0)">Chung cư</button>
+  <button class="tab" onclick="switchTab(1)">Để bán</button>
+  <button class="tab" onclick="switchTab(2)">Đất nền</button>
+  <button class="tab" onclick="switchTab(3)">Nhà thổ cư</button>
+  <button class="tab" onclick="switchTab(4)">CC mini</button>
+</div>
+
+<!-- TAB 0: Căn hộ chung cư -->
+<div class="section active" id="sec0">
+  <div class="card">
+    <div class="card-title">Chi phí đầu tư</div>
+    <div class="grid2">
+      <div class="field"><label>Giá mua (triệu VNĐ)</label><input type="number" id="t0_price" value="3000" step="50"></div>
+      <div class="field"><label>Chi phí phát sinh (triệu VNĐ)</label><input type="number" id="t0_extra" value="150" step="10"><span class="hint">Nội thất, sửa chữa, môi giới...</span></div>
+      <div class="field"><label>Vốn tự có (triệu VNĐ)</label><input type="number" id="t0_equity" value="1000" step="50"></div>
+      <div class="field"><label>Lãi suất vay (%/năm)</label><input type="number" id="t0_rate" value="9" step="0.5"></div>
+      <div class="field"><label>Thời hạn vay (năm)</label><input type="number" id="t0_loan_term" value="15" step="1"></div>
+      <div class="field"><label>Thời gian phân tích (năm)</label><input type="number" id="t0_hold" value="10" step="1"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Doanh thu & Vận hành</div>
+    <div class="grid2">
+      <div class="field"><label>Tiền thuê/tháng (triệu VNĐ)</label><input type="number" id="t0_rent" value="12" step="0.5"></div>
+      <div class="field"><label>Tỷ lệ lấp đầy (%)</label><input type="number" id="t0_occ" value="90" step="5"></div>
+      <div class="field"><label>Tăng giá thuê/năm (%)</label><input type="number" id="t0_rent_grow" value="5" step="1"></div>
+      <div class="field"><label>Chi phí vận hành/năm (triệu VNĐ)</label><input type="number" id="t0_opex" value="30" step="5"><span class="hint">Phí quản lý, bảo trì, thuế...</span></div>
+      <div class="field"><label>Tăng giá BĐS/năm (%)</label><input type="number" id="t0_app" value="7" step="1"></div>
+      <div class="field"><label>Chi phí giao dịch khi bán (%)</label><input type="number" id="t0_sell_cost" value="2" step="0.5"></div>
+    </div>
+  </div>
+  <button class="btn" onclick="calc(0)">Tính toán →</button>
+  <div id="res0"></div>
+</div>
+
+<!-- TAB 1: Căn hộ để bán -->
+<div class="section" id="sec1">
+  <div class="card">
+    <div class="card-title">Chi phí đầu tư</div>
+    <div class="grid2">
+      <div class="field"><label>Giá mua (triệu VNĐ)</label><input type="number" id="t1_price" value="2500" step="50"></div>
+      <div class="field"><label>Chi phí phát sinh (triệu VNĐ)</label><input type="number" id="t1_extra" value="100" step="10"></div>
+      <div class="field"><label>Vốn tự có (triệu VNĐ)</label><input type="number" id="t1_equity" value="800" step="50"></div>
+      <div class="field"><label>Lãi suất vay (%/năm)</label><input type="number" id="t1_rate" value="9" step="0.5"></div>
+      <div class="field"><label>Thời hạn vay (năm)</label><input type="number" id="t1_loan_term" value="20" step="1"></div>
+      <div class="field"><label>Thời gian nắm giữ (năm)</label><input type="number" id="t1_hold" value="5" step="1"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Kịch bản bán lại</div>
+    <div class="grid2">
+      <div class="field"><label>Tốc độ tăng giá/năm (%)</label><input type="number" id="t1_app" value="10" step="1"></div>
+      <div class="field"><label>Chi phí giao dịch khi bán (%)</label><input type="number" id="t1_sell_cost" value="2" step="0.5"></div>
+      <div class="field"><label>Tỷ lệ chiết khấu (%)</label><input type="number" id="t1_disc" value="10" step="0.5"></div>
+    </div>
+  </div>
+  <button class="btn" onclick="calc(1)">Tính toán →</button>
+  <div id="res1"></div>
+</div>
+
+<!-- TAB 2: Đất nền -->
+<div class="section" id="sec2">
+  <div class="card">
+    <div class="card-title">Chi phí đầu tư</div>
+    <div class="grid2">
+      <div class="field"><label>Giá mua (triệu VNĐ)</label><input type="number" id="t2_price" value="2000" step="50"></div>
+      <div class="field"><label>Chi phí phát sinh (triệu VNĐ)</label><input type="number" id="t2_extra" value="80" step="10"><span class="hint">Sang tên, môi giới, san lấp...</span></div>
+      <div class="field"><label>Vốn tự có (triệu VNĐ)</label><input type="number" id="t2_equity" value="1000" step="50"></div>
+      <div class="field"><label>Lãi suất vay (%/năm)</label><input type="number" id="t2_rate" value="10" step="0.5"></div>
+      <div class="field"><label>Thời hạn vay (năm)</label><input type="number" id="t2_loan_term" value="5" step="1"></div>
+      <div class="field"><label>Thời gian nắm giữ (năm)</label><input type="number" id="t2_hold" value="5" step="1"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Kịch bản bán lại</div>
+    <div class="grid2">
+      <div class="field"><label>Tốc độ tăng giá/năm (%)</label><input type="number" id="t2_app" value="15" step="1"></div>
+      <div class="field"><label>Chi phí vận hành/năm (triệu VNĐ)</label><input type="number" id="t2_opex" value="10" step="5"><span class="hint">Thuế đất, bảo vệ...</span></div>
+      <div class="field"><label>Chi phí giao dịch khi bán (%)</label><input type="number" id="t2_sell_cost" value="2" step="0.5"></div>
+      <div class="field"><label>Tỷ lệ chiết khấu (%)</label><input type="number" id="t2_disc" value="10" step="0.5"></div>
+    </div>
+  </div>
+  <button class="btn" onclick="calc(2)">Tính toán →</button>
+  <div id="res2"></div>
+</div>
+
+<!-- TAB 3: Nhà thổ cư -->
+<div class="section" id="sec3">
+  <div class="card">
+    <div class="card-title">Chi phí đầu tư</div>
+    <div class="grid2">
+      <div class="field"><label>Giá mua đất + nhà (triệu VNĐ)</label><input type="number" id="t3_price" value="5000" step="100"></div>
+      <div class="field"><label>Chi phí cải tạo/xây mới (triệu VNĐ)</label><input type="number" id="t3_extra" value="500" step="50"></div>
+      <div class="field"><label>Vốn tự có (triệu VNĐ)</label><input type="number" id="t3_equity" value="2000" step="100"></div>
+      <div class="field"><label>Lãi suất vay (%/năm)</label><input type="number" id="t3_rate" value="9" step="0.5"></div>
+      <div class="field"><label>Thời hạn vay (năm)</label><input type="number" id="t3_loan_term" value="15" step="1"></div>
+      <div class="field"><label>Thời gian phân tích (năm)</label><input type="number" id="t3_hold" value="10" step="1"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Doanh thu & Vận hành</div>
+    <div class="grid2">
+      <div class="field"><label>Tiền thuê/tháng (triệu VNĐ)</label><input type="number" id="t3_rent" value="25" step="1"></div>
+      <div class="field"><label>Tỷ lệ lấp đầy (%)</label><input type="number" id="t3_occ" value="95" step="5"></div>
+      <div class="field"><label>Tăng giá thuê/năm (%)</label><input type="number" id="t3_rent_grow" value="5" step="1"></div>
+      <div class="field"><label>Chi phí vận hành/năm (triệu VNĐ)</label><input type="number" id="t3_opex" value="60" step="10"></div>
+      <div class="field"><label>Tăng giá BĐS/năm (%)</label><input type="number" id="t3_app" value="8" step="1"></div>
+      <div class="field"><label>Chi phí giao dịch khi bán (%)</label><input type="number" id="t3_sell_cost" value="2" step="0.5"></div>
+    </div>
+  </div>
+  <button class="btn" onclick="calc(3)">Tính toán →</button>
+  <div id="res3"></div>
+</div>
+
+<!-- TAB 4: Chung cư mini -->
+<div class="section" id="sec4">
+  <div class="card">
+    <div class="card-title">Chi phí đầu tư</div>
+    <div class="grid2">
+      <div class="field"><label>Giá mua đất + xây dựng (triệu VNĐ)</label><input type="number" id="t4_price" value="8000" step="200"></div>
+      <div class="field"><label>Chi phí phát sinh (triệu VNĐ)</label><input type="number" id="t4_extra" value="400" step="50"><span class="hint">PCCC, thiết bị, môi giới...</span></div>
+      <div class="field"><label>Vốn tự có (triệu VNĐ)</label><input type="number" id="t4_equity" value="3000" step="200"></div>
+      <div class="field"><label>Lãi suất vay (%/năm)</label><input type="number" id="t4_rate" value="9.5" step="0.5"></div>
+      <div class="field"><label>Thời hạn vay (năm)</label><input type="number" id="t4_loan_term" value="15" step="1"></div>
+      <div class="field"><label>Thời gian phân tích (năm)</label><input type="number" id="t4_hold" value="10" step="1"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Doanh thu & Vận hành</div>
+    <div class="grid2">
+      <div class="field"><label>Số phòng cho thuê</label><input type="number" id="t4_units" value="20" step="1"></div>
+      <div class="field"><label>Giá thuê/phòng/tháng (triệu VNĐ)</label><input type="number" id="t4_rent" value="4" step="0.5"></div>
+      <div class="field"><label>Tỷ lệ lấp đầy (%)</label><input type="number" id="t4_occ" value="90" step="5"></div>
+      <div class="field"><label>Tăng giá thuê/năm (%)</label><input type="number" id="t4_rent_grow" value="5" step="1"></div>
+      <div class="field"><label>Chi phí vận hành/năm (triệu VNĐ)</label><input type="number" id="t4_opex" value="120" step="20"><span class="hint">Điện, nước, quản lý, bảo trì...</span></div>
+      <div class="field"><label>Tăng giá BĐS/năm (%)</label><input type="number" id="t4_app" value="7" step="1"></div>
+    </div>
+  </div>
+  <button class="btn" onclick="calc(4)">Tính toán →</button>
+  <div id="res4"></div>
+</div>
+
+</div><!-- /container -->
+
+<script>
+function switchTab(i){
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',i===j));
+  document.querySelectorAll('.section').forEach((s,j)=>s.classList.toggle('active',i===j));
+}
+function v(id){return parseFloat(document.getElementById(id).value)||0}
+function fmt(n){
+  if(Math.abs(n)>=1000) return (n/1000).toFixed(1).replace(/\.0$/,'')+' tỷ';
+  return Math.round(n)+' tr';
+}
+function fmtPct(n){return n.toFixed(1)+'%'}
+function calcNPV(cfs,r){return cfs.reduce((s,c,i)=>s+c/Math.pow(1+r,i),0)}
+function calcIRR(cfs){
+  let lo=-0.99,hi=5,mid,iter=0;
+  while(iter++<300){mid=(lo+hi)/2;calcNPV(cfs,mid)>0?lo=mid:hi=mid;if(Math.abs(hi-lo)<1e-7)break}
+  return mid;
+}
+function calcLoanPayment(p,r,t){
+  if(r===0)return p/t;
+  const m=r/12,n=t*12;
+  return p*m*Math.pow(1+m,n)/(Math.pow(1+m,n)-1)*12;
+}
+function calcPayback(cfs){
+  let cum=cfs[0];
+  for(let i=1;i<cfs.length;i++){
+    if(cum>=0)return i-1;
+    const prev=cum;cum+=cfs[i];
+    if(cum>=0)return(i-1)+(-prev/cfs[i]);
+  }
+  return null;
+}
+function colorC(v,g,o){return v===null||isNaN(v)?'':(v>=g?'good':v>=o?'warn':'bad')}
+
+let charts={};
+function renderChart(id,labels,data){
+  const c=document.getElementById('chart_'+id);
+  if(!c)return;
+  if(charts[id])charts[id].destroy();
+  charts[id]=new Chart(c,{
+    type:'bar',
+    data:{labels,datasets:[{label:'Dòng tiền (tr VNĐ)',data:data.map(d=>Math.round(d)),backgroundColor:data.map(d=>d>=0?'#0a7c5c':'#c0392b'),borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10},autoSkip:false},grid:{display:false}},y:{ticks:{font:{size:10},callback:v=>fmt(v)},grid:{color:'rgba(0,0,0,0.06)'}}}}
+  });
+}
+
+function showResult(tid,m,cfs,rows){
+  const el=document.getElementById('res'+tid);
+  const pb=m.payback;
+  const pbStr=pb===null?'> kỳ phân tích':(pb<1?'< 1 năm':pb.toFixed(1)+' năm');
+  const labels=rows.map(r=>r.yr===0?'Đầu tư':'Năm '+r.yr);
+  const cfData=rows.map(r=>r.net);
+  el.innerHTML=`
+<hr class="divider">
+<div class="metric-grid">
+  <div class="metric"><div class="metric-label">IRR</div><div class="metric-value ${colorC(m.irr*100,15,10)}">${isNaN(m.irr)?'N/A':fmtPct(m.irr*100)}</div></div>
+  <div class="metric"><div class="metric-label">NPV</div><div class="metric-value ${m.npv>0?'good':'bad'}">${fmt(m.npv)}</div></div>
+  <div class="metric"><div class="metric-label">Payback</div><div class="metric-value ${pb&&pb<8?'good':pb&&pb<12?'warn':'bad'}">${pbStr}</div></div>
+  <div class="metric"><div class="metric-label">Equity Return</div><div class="metric-value ${colorC(m.equity*100,20,12)}">${isNaN(m.equity)?'N/A':fmtPct(m.equity*100)}</div></div>
+</div>
+<div class="card">
+  <div class="card-title">Dòng tiền theo năm</div>
+  <div class="legend"><span><span class="dot" style="background:#0a7c5c"></span>Dương</span><span><span class="dot" style="background:#c0392b"></span>Âm</span></div>
+  <div class="chart-wrap"><canvas id="chart_${tid}" role="img" aria-label="Biểu đồ dòng tiền"></canvas></div>
+</div>
+<div class="card">
+  <div class="card-title">Bảng dòng tiền chi tiết</div>
+  <div style="overflow-x:auto">
+  <table class="cash-table">
+    <thead><tr><th>Năm</th><th>Doanh thu</th><th>Vận hành</th><th>Trả nợ</th><th>Ròng</th><th>Lũy kế</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr><td>${r.yr===0?'Đầu tư':'Năm '+r.yr}</td><td>${r.rev>0?fmt(r.rev):'—'}</td><td>${r.opex>0?('-'+fmt(r.opex)):'—'}</td><td>${r.debt>0?('-'+fmt(r.debt)):'—'}</td><td style="color:${r.net>=0?'#0a7c5c':'#c0392b'};font-weight:600">${fmt(r.net)}</td><td style="color:${r.cum>=0?'#0a7c5c':'#c0392b'}">${fmt(r.cum)}</td></tr>`).join('')}</tbody>
+  </table></div>
+</div>
+<div class="note">IRR xanh ≥ 15% · vàng 10–15% · đỏ &lt; 10% &nbsp;|&nbsp; NPV dương = dự án tạo giá trị &nbsp;|&nbsp; Payback xanh &lt; 8 năm</div>`;
+  setTimeout(()=>renderChart(tid,labels,cfData),50);
+}
+
+function calc(tab){
+  const cfg={
+    0:{rental:true},1:{sell:true,useDisc:true},
+    2:{sell:true,useDisc:true,hasOpex:true},
+    3:{rental:true},4:{rental:true,multi:true}
+  }[tab];
+  const p=v(`t${tab}_price`),ex=v(`t${tab}_extra`),eq=v(`t${tab}_equity`);
+  const rate=v(`t${tab}_rate`)/100,lt=v(`t${tab}_loan_term`),hold=v(`t${tab}_hold`);
+  const app=v(`t${tab}_app`)/100;
+  const sc=(tab===2||tab===1?v(`t${tab}_sell_cost`):v(`t${tab}_sell_cost`))/100;
+  const disc=tab===1?v('t1_disc')/100:tab===2?v('t2_disc')/100:0.10;
+  const total=p+ex,loan=total-eq;
+  const annDebt=loan>0?calcLoanPayment(loan,rate,lt):0;
+  const cfs=[-eq];
+  const rows=[{yr:0,rev:0,opex:0,debt:0,net:-eq,cum:-eq}];
+  let cum=-eq;
+  for(let y=1;y<=hold;y++){
+    let rev=0,opexY=0,debtY=y<=lt?annDebt:0,extra=0;
+    if(cfg.rental){
+      const rent=tab===4?v('t4_units')*v('t4_rent'):v(`t${tab}_rent`);
+      const occ=v(`t${tab}_occ`)/100,rg=v(`t${tab}_rent_grow`)/100;
+      rev=rent*12*occ*Math.pow(1+rg,y-1);
+      opexY=v(`t${tab}_opex`);
+    }
+    if(cfg.hasOpex) opexY=v(`t${tab}_opex`);
+    if(y===hold){
+      const sp=total*Math.pow(1+app,hold)*(1-(tab===4?0.03:sc));
+      const lb=Math.max(0,loan-annDebt*Math.min(y,lt)*0.25);
+      extra=sp-lb;
+      if(!cfg.rental) rev=sp;
+    }
+    const net=rev-opexY-debtY+(cfg.rental&&y===hold?extra-total*Math.pow(1+app,hold)*(1-(tab===4?0.03:sc))+extra:0);
+    const netFix=cfg.rental?(rev-opexY-debtY+(y===hold?extra:0)):(-debtY+(y===hold?extra:0));
+    cum+=netFix;
+    cfs.push(netFix);
+    rows.push({yr:y,rev:cfg.rental?rev:(y===hold?total*Math.pow(1+app,hold)*(1-sc):0),opex:opexY,debt:debtY,net:netFix,cum});
+  }
+  const irr=calcIRR(cfs);
+  const npv=calcNPV(cfs,disc);
+  const pb=calcPayback(cfs);
+  const totalProfit=cfs.slice(1).reduce((a,b)=>a+b,0);
+  showResult(tab,{irr,npv,payback:pb,equity:totalProfit/eq},cfs,rows);
+}
+</script>
+</body>
+</html>
